@@ -173,15 +173,15 @@ resource "aws_alb_target_group" "ecs_target" {
 }
 
 resource "aws_autoscaling_group" "ecs_asg" {
-  name_prefix          = "bitwardenrs-ecs-asg-"
-  vpc_zone_identifier  = module.vpc.public_subnets
-  launch_configuration = aws_launch_configuration.ecs_launch_config.name
-  max_size             = 1
-  min_size             = 1
-  desired_capacity     = 1
-  health_check_type    = "ELB"
-  target_group_arns    = [aws_alb_target_group.ecs_target.arn]
-  suspended_processes  = ["Terminate"]
+  name_prefix               = "bitwardenrs-ecs-asg-"
+  vpc_zone_identifier       = module.vpc.public_subnets
+  launch_configuration      = aws_launch_configuration.ecs_launch_config.name
+  max_size                  = 1
+  min_size                  = 1
+  desired_capacity          = 1
+  health_check_type         = "ELB"
+  target_group_arns         = [aws_alb_target_group.ecs_target.arn]
+  health_check_grace_period = 600
 }
 
 resource "aws_ecs_cluster" "ecs_cluster" {
