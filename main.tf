@@ -80,6 +80,13 @@ resource "aws_security_group" "alb_sg" {
   vpc_id = module.vpc.vpc_id
 
   ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
@@ -175,4 +182,51 @@ resource "aws_autoscaling_group" "ecs_asg" {
   health_check_type    = "ELB"
   target_group_arns    = [aws_alb_target_group.ecs_target.arn]
   suspended_processes  = ["Terminate"]
+}
+
+resource "aws_ecs_cluster" "ecs_cluster" {
+  name = var.ecs_cluster_name
+}
+
+resource "aws_ecs_task_definition" "bitwardenrs_task" {
+  family = "bitwardenrs_task"
+
+  container_definitions = jsonencode([
+    {
+      "essential" : true,
+      "memory" : 512,
+      "name" : "bitwardenrs",
+      "cpu" : 1024,
+      "image" : "bitwardenrs/server:latest",
+      "environment" : [],
+      "networkMode" : "awsvpc",
+      "portMappings" : [
+        {
+          "containerPort" : 80,
+          "hostPort" : 80,
+          "protocol" : "tcp"
+        }
+      ]
+    }
+  ])
+}
+
+resource "aws_ecs_service" "bitwardenrs_service" {
+  name                  = "${var.ecs_cluster_name}-bitwardenrs"
+  cluster               = aws_ecs_cluster.ecs_cluster.id
+  task_definition       = aws_ecs_task_definition.bitwardenrs_task.arn
+  desired_count         = 1
+  wait_for_steady_state = true
+}
+
+resource "aws_route53_record" "bitwardenrs" {
+  name    = var.domain_name
+  type    = "A"
+  zone_id = data.aws_route53_zone.domain_hosted_zone.zone_id
+
+  alias {
+    name                   = aws_alb.ecs_alb.dns_name
+    zone_id                = aws_alb.ecs_alb.zone_id
+    evaluate_target_health = false
+  }
 }
