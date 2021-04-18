@@ -58,10 +58,10 @@ resource "aws_security_group" "ecs_sg" {
   vpc_id = module.vpc.vpc_id
 
   ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb_sg.id]
   }
 
   egress {
@@ -151,7 +151,7 @@ resource "aws_alb" "ecs_alb" {
   load_balancer_type = "application"
 }
 
-resource "aws_alb_listener" "ecs_listener" {
+resource "aws_alb_listener" "ecs_https_listener" {
   load_balancer_arn = aws_alb.ecs_alb.arn
   port              = "443"
   protocol          = "HTTPS"
@@ -161,6 +161,22 @@ resource "aws_alb_listener" "ecs_listener" {
   default_action {
     type             = "forward"
     target_group_arn = aws_alb_target_group.ecs_target.arn
+  }
+}
+
+resource "aws_alb_listener" "ecs_http_listener" {
+  load_balancer_arn = aws_alb.ecs_alb.arn
+  port              = "80"
+  protocol          = "HTTP"
+
+  default_action {
+    type = "redirect"
+
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
   }
 }
 
