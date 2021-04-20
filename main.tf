@@ -7,17 +7,23 @@ terraform {
   }
 }
 
-locals {
-  subnet_count = max(min(var.subnet_count, 1), 3)
-}
-
 module "vpc" {
   source                   = "github.com/kazhala/terraform_aws_vpc"
-  vpc_name                 = var.vpc_name
+  vpc_name                 = var.name
   cidr_block               = var.cidr_block
-  subnet_count             = local.subnet_count
+  subnet_count             = 2
   enable_vpc_flowlog       = var.enable_vpc_flowlog
   flowlog_log_group_prefix = var.vpc_flowlog_loggroup
+}
+
+module "ecs_cluster" {
+  source            = "github.com/kazhala/terraform_aws_ecs_ec2_cluster"
+  vpc_id            = module.vpc.vpc_id
+  subnets           = module.vpc.public_subnets
+  cluster_name      = var.name
+  security_groups   = [aws_security_group.ecs_sg.arn]
+  instance_type     = "t3.micro"
+  target_group_arns = [aws_alb_target_group.ecs_target.arn]
 }
 
 resource "aws_acm_certificate" "cert" {
@@ -105,45 +111,6 @@ resource "aws_security_group" "alb_sg" {
   }
 }
 
-data "aws_iam_policy_document" "ecs_agent" {
-  statement {
-    actions = ["sts:AssumeRole"]
-
-    principals {
-      type        = "Service"
-      identifiers = ["ec2.amazonaws.com"]
-    }
-  }
-}
-
-resource "aws_iam_role" "ecs_agent" {
-  name_prefix        = "bitwardenrs-ecs-agent-"
-  assume_role_policy = data.aws_iam_policy_document.ecs_agent.json
-}
-
-resource "aws_iam_role_policy_attachment" "ecs_agent" {
-  role       = aws_iam_role.ecs_agent.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
-}
-
-resource "aws_iam_instance_profile" "ecs_agent" {
-  name = "bitwardenrs-ecs-agent-"
-  role = aws_iam_role.ecs_agent.name
-}
-
-data "aws_ssm_parameter" "ecs_ami" {
-  name = "/aws/service/ecs/optimized-ami/amazon-linux-2/recommended"
-}
-
-resource "aws_launch_configuration" "ecs_launch_config" {
-  image_id             = jsondecode(data.aws_ssm_parameter.ecs_ami.value).image_id
-  name_prefix          = "bitwardenrs-launch-config-"
-  iam_instance_profile = aws_iam_instance_profile.ecs_agent.name
-  security_groups      = [aws_security_group.ecs_sg.id]
-  user_data            = "#!/bin/bash\necho ECS_CLUSTER=${var.ecs_cluster_name} >> /etc/ecs/ecs.config"
-  instance_type        = var.ec2_instance_type
-}
-
 resource "aws_alb" "ecs_alb" {
   name_prefix        = "bw-"
   security_groups    = [aws_security_group.alb_sg.id]
@@ -188,28 +155,6 @@ resource "aws_alb_target_group" "ecs_target" {
   target_type = "instance"
 }
 
-resource "aws_autoscaling_group" "ecs_asg" {
-  name_prefix               = "bitwardenrs-ecs-asg-"
-  vpc_zone_identifier       = module.vpc.public_subnets
-  launch_configuration      = aws_launch_configuration.ecs_launch_config.name
-  max_size                  = 1
-  min_size                  = 1
-  desired_capacity          = 1
-  health_check_type         = "ELB"
-  target_group_arns         = [aws_alb_target_group.ecs_target.arn]
-  health_check_grace_period = 600
-
-  tag {
-    key                 = "Name"
-    value               = "bitwardenrs-ecs-cluster"
-    propagate_at_launch = true
-  }
-}
-
-resource "aws_ecs_cluster" "ecs_cluster" {
-  name = var.ecs_cluster_name
-}
-
 resource "aws_ecs_task_definition" "bitwardenrs_task" {
   family       = "bitwardenrs_task"
   network_mode = "bridge"
@@ -235,7 +180,7 @@ resource "aws_ecs_task_definition" "bitwardenrs_task" {
 
 resource "aws_ecs_service" "bitwardenrs_service" {
   name            = "${var.ecs_cluster_name}-bitwardenrs"
-  cluster         = aws_ecs_cluster.ecs_cluster.id
+  cluster         = module.ecs_cluster.cluster_id
   task_definition = aws_ecs_task_definition.bitwardenrs_task.arn
   desired_count   = 1
 }

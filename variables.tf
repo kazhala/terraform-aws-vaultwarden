@@ -4,15 +4,15 @@ variable "cidr_block" {
   description = "CIDR block for the ECS cluster VPC."
 }
 
+variable "name" {
+  default     = "bitwardenrs"
+  type        = string
+  description = "Name for the VPC and ECS cluster."
+}
+
 variable "vpc_name" {
   type        = string
   description = "Name of the ECS cluster VPC."
-}
-
-variable "subnet_count" {
-  default     = 3
-  type        = number
-  description = "Number of subnet to create, maximum 3."
 }
 
 variable "enable_vpc_flowlog" {
@@ -35,7 +35,7 @@ variable "ecs_cluster_name" {
 variable "ec2_instance_type" {
   default     = "t3.micro"
   type        = string
-  description = "EC2 instance type."
+  description = "ECS cluster EC2 instance type."
 }
 
 variable "domain_name" {
