@@ -12,12 +12,12 @@ locals {
 }
 
 module "vpc" {
-  source               = "github.com/kazhala/terraform_aws_vpc?ref=v0.1.1"
-  vpc_name             = var.vpc_name
-  cidr_block           = var.cidr_block
-  subnet_count         = local.subnet_count
-  enable_vpc_flowlog   = var.enable_vpc_flowlog
-  vpc_flowlog_loggroup = var.vpc_flowlog_loggroup
+  source                   = "github.com/kazhala/terraform_aws_vpc"
+  vpc_name                 = var.vpc_name
+  cidr_block               = var.cidr_block
+  subnet_count             = local.subnet_count
+  enable_vpc_flowlog       = var.enable_vpc_flowlog
+  flowlog_log_group_prefix = var.vpc_flowlog_loggroup
 }
 
 resource "aws_acm_certificate" "cert" {
@@ -198,6 +198,12 @@ resource "aws_autoscaling_group" "ecs_asg" {
   health_check_type         = "ELB"
   target_group_arns         = [aws_alb_target_group.ecs_target.arn]
   health_check_grace_period = 600
+
+  tag {
+    key                 = "Name"
+    value               = "bitwardenrs-ecs-cluster"
+    propagate_at_launch = true
+  }
 }
 
 resource "aws_ecs_cluster" "ecs_cluster" {
@@ -205,17 +211,17 @@ resource "aws_ecs_cluster" "ecs_cluster" {
 }
 
 resource "aws_ecs_task_definition" "bitwardenrs_task" {
-  family = "bitwardenrs_task"
+  family       = "bitwardenrs_task"
+  network_mode = "bridge"
 
   container_definitions = jsonencode([
     {
       "essential" : true,
-      "memory" : 512,
+      "memory" : 478,
       "name" : "bitwardenrs",
       "cpu" : 1024,
       "image" : "bitwardenrs/server:latest",
       "environment" : [],
-      "networkMode" : "awsvpc",
       "portMappings" : [
         {
           "containerPort" : 80,
@@ -228,11 +234,10 @@ resource "aws_ecs_task_definition" "bitwardenrs_task" {
 }
 
 resource "aws_ecs_service" "bitwardenrs_service" {
-  name                  = "${var.ecs_cluster_name}-bitwardenrs"
-  cluster               = aws_ecs_cluster.ecs_cluster.id
-  task_definition       = aws_ecs_task_definition.bitwardenrs_task.arn
-  desired_count         = 1
-  wait_for_steady_state = true
+  name            = "${var.ecs_cluster_name}-bitwardenrs"
+  cluster         = aws_ecs_cluster.ecs_cluster.id
+  task_definition = aws_ecs_task_definition.bitwardenrs_task.arn
+  desired_count   = 1
 }
 
 resource "aws_route53_record" "bitwardenrs" {
