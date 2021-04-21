@@ -7,6 +7,10 @@ terraform {
   }
 }
 
+locals {
+  fqda = "${var.domain_name_prefix}${var.domain_name_prefix != "" ? "." : ""}${var.domain_name}"
+}
+
 module "vpc" {
   source                   = "github.com/kazhala/terraform_aws_vpc"
   vpc_name                 = var.name
@@ -17,18 +21,19 @@ module "vpc" {
 }
 
 module "ecs_cluster" {
-  source            = "github.com/kazhala/terraform_aws_ecs_ec2_cluster"
-  vpc_id            = module.vpc.vpc_id
-  subnets           = module.vpc.public_subnets
-  cluster_name      = var.name
-  security_groups   = [aws_security_group.ecs_sg.arn]
-  instance_type     = "t3.micro"
-  target_group_arns = [aws_alb_target_group.ecs_target.arn]
+  source                    = "github.com/kazhala/terraform_aws_ecs_ec2_cluster"
+  vpc_id                    = module.vpc.vpc_id
+  subnets                   = module.vpc.public_subnets
+  cluster_name              = var.name
+  security_groups           = [aws_security_group.ecs_sg.id]
+  instance_type             = "t3.micro"
+  target_group_arns         = [aws_alb_target_group.ecs_target.arn]
+  health_check_grace_period = 600
 }
 
 resource "aws_acm_certificate" "cert" {
-  domain_name               = var.domain_name
-  subject_alternative_names = ["www.${var.domain_name}"]
+  domain_name               = local.fqda
+  subject_alternative_names = ["www.${local.fqda}"]
   validation_method         = "DNS"
 }
 
@@ -78,7 +83,7 @@ resource "aws_security_group" "ecs_sg" {
   }
 
   tags = {
-    "Name" = "${var.vpc_name}-bitwardenrs-ecs-sg"
+    "Name" = "${var.name}-ecs-sg"
   }
 }
 
@@ -107,7 +112,7 @@ resource "aws_security_group" "alb_sg" {
   }
 
   tags = {
-    "Name" = "${var.vpc_name}-bitwardenrs-alb-sg"
+    "Name" = "${var.name}-alb-sg"
   }
 }
 
@@ -179,14 +184,14 @@ resource "aws_ecs_task_definition" "bitwardenrs_task" {
 }
 
 resource "aws_ecs_service" "bitwardenrs_service" {
-  name            = "${var.ecs_cluster_name}-bitwardenrs"
+  name            = var.name
   cluster         = module.ecs_cluster.cluster_id
   task_definition = aws_ecs_task_definition.bitwardenrs_task.arn
   desired_count   = 1
 }
 
 resource "aws_route53_record" "bitwardenrs" {
-  name    = var.domain_name
+  name    = local.fqda
   type    = "A"
   zone_id = data.aws_route53_zone.domain_hosted_zone.zone_id
 
