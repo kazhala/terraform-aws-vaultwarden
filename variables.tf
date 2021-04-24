@@ -63,6 +63,12 @@ variable "rds_max_allocated_storage" {
   description = "Maximum scaling for RDS storage."
 }
 
+variable "bitwardenrs_env" {
+  default     = []
+  type        = list(map(string))
+  description = "List of bitwardenrs environment variable mappings. [{name = \"name\", value = \"value\"}]."
+}
+
 # variable "enable_cloudfront" {
 #   default     = false
 #   type        = bool
