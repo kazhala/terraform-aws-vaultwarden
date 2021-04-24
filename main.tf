@@ -8,7 +8,7 @@ terraform {
 }
 
 locals {
-  fqda = "${var.domain_name_prefix}${var.domain_name_prefix != "" ? "." : ""}${var.domain_name}"
+  domain_name = "${var.domain_name_prefix}${var.domain_name_prefix != "" ? "." : ""}${var.domain_name}"
 }
 
 module "vpc" {
@@ -31,38 +31,19 @@ module "ecs_cluster" {
   health_check_grace_period = 600
 }
 
-resource "aws_acm_certificate" "cert" {
-  domain_name               = local.fqda
-  subject_alternative_names = ["www.${local.fqda}"]
-  validation_method         = "DNS"
-}
-
 data "aws_route53_zone" "domain_hosted_zone" {
   name         = var.domain_name
   private_zone = false
 }
 
-resource "aws_route53_record" "validation_record" {
-  for_each = {
-    for dvo in aws_acm_certificate.cert.domain_validation_options : dvo.domain_name => {
-      name    = dvo.resource_record_name
-      record  = dvo.resource_record_value
-      type    = dvo.resource_record_type
-      zone_id = data.aws_route53_zone.domain_hosted_zone.zone_id
-    }
-  }
+module "acm" {
+  source  = "terraform-aws-modules/acm/aws"
+  version = "~> v2.0"
 
-  allow_overwrite = true
-  name            = each.value.name
-  records         = [each.value.record]
-  ttl             = 60
-  type            = each.value.type
-  zone_id         = each.value.zone_id
-}
+  domain_name = local.domain_name
+  zone_id     = data.aws_route53_zone.domain_hosted_zone.zone_id
 
-resource "aws_acm_certificate_validation" "cert_validation" {
-  certificate_arn         = aws_acm_certificate.cert.arn
-  validation_record_fqdns = [for record in aws_route53_record.validation_record : record.fqdn]
+  subject_alternative_names = ["www.${local.domain_name}"]
 }
 
 resource "aws_security_group" "ecs_sg" {
@@ -128,7 +109,7 @@ resource "aws_alb_listener" "ecs_https_listener" {
   port              = "443"
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-2016-08"
-  certificate_arn   = aws_acm_certificate_validation.cert_validation.certificate_arn
+  certificate_arn   = module.acm.this_acm_certificate_arn
 
   default_action {
     type             = "forward"
@@ -191,7 +172,19 @@ resource "aws_ecs_service" "bitwardenrs_service" {
 }
 
 resource "aws_route53_record" "bitwardenrs" {
-  name    = local.fqda
+  name    = local.domain_name
+  type    = "A"
+  zone_id = data.aws_route53_zone.domain_hosted_zone.zone_id
+
+  alias {
+    name                   = aws_alb.ecs_alb.dns_name
+    zone_id                = aws_alb.ecs_alb.zone_id
+    evaluate_target_health = false
+  }
+}
+
+resource "aws_route53_record" "www_bitwardenrs" {
+  name    = "www.${local.domain_name}"
   type    = "A"
   zone_id = data.aws_route53_zone.domain_hosted_zone.zone_id
 
