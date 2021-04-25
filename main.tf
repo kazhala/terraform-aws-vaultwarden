@@ -55,7 +55,7 @@ resource "aws_security_group" "ecs_sg" {
   }
 
   tags = {
-    "Name" = "${var.name}-ecs-sg"
+    "Name" = "ecs-${var.name}"
   }
 }
 
@@ -84,7 +84,7 @@ resource "aws_security_group" "alb_sg" {
   }
 
   tags = {
-    "Name" = "${var.name}-alb-sg"
+    "Name" = "alb-${var.name}"
   }
 }
 
@@ -106,7 +106,7 @@ resource "aws_security_group" "rds_sg" {
   }
 
   tags = {
-    "Name" = "${var.name}-rds-sg"
+    "Name" = "rds-${var.name}"
   }
 }
 
@@ -124,7 +124,7 @@ data "aws_iam_policy_document" "enhanced_monitoring" {
 }
 
 resource "aws_iam_role" "enhanced_monitoring" {
-  name_prefix        = "${var.name}-rds-monitoring-"
+  name_prefix        = "rds-monitoring-${var.name}-"
   assume_role_policy = data.aws_iam_policy_document.enhanced_monitoring.json
 }
 
@@ -152,13 +152,17 @@ resource "random_id" "rds_final_snapshot" {
 }
 
 resource "aws_db_instance" "rds" {
-  identifier_prefix         = "${var.name}-"
+  identifier_prefix = "${var.name}-"
+
+  instance_class            = "db.t2.micro"
+  engine                    = "postgres"
+  engine_version            = "12.6"
   snapshot_identifier       = var.rds_snapshot_identifier
   final_snapshot_identifier = "${var.name}-${random_id.rds_final_snapshot.hex}"
 
-  instance_class = "db.t2.micro"
-  engine         = "postgres"
-  engine_version = "12.6"
+  backup_window           = var.rds_backup_window
+  maintenance_window      = var.rds_maintenance_window
+  backup_retention_period = 7
 
   username = var.rds_username
   password = random_password.rds_master.result
@@ -182,7 +186,9 @@ resource "aws_db_instance" "rds" {
 }
 
 resource "aws_alb" "ecs_alb" {
-  name_prefix        = "bw-"
+  # TODO: customise name_prefix
+  name_prefix = "bw-"
+
   security_groups    = [aws_security_group.alb_sg.id]
   subnets            = module.vpc.public_subnets
   load_balancer_type = "application"
@@ -218,7 +224,9 @@ resource "aws_alb_listener" "ecs_http_listener" {
 }
 
 resource "aws_alb_target_group" "ecs_target" {
+  # TODO: customise name_prefix
   name_prefix = "bw-"
+
   port        = 80
   protocol    = "HTTP"
   vpc_id      = module.vpc.vpc_id
@@ -257,14 +265,16 @@ resource "aws_ecs_task_definition" "bitwardenrs_task" {
 }
 
 resource "aws_ecs_service" "bitwardenrs_service" {
-  name            = var.name
+  name = var.name
+
   cluster         = module.ecs_cluster.cluster_id
   task_definition = aws_ecs_task_definition.bitwardenrs_task.arn
   desired_count   = 1
 }
 
 resource "aws_route53_record" "bitwardenrs" {
-  name    = local.domain_name
+  name = local.domain_name
+
   type    = "A"
   zone_id = data.aws_route53_zone.domain_hosted_zone.zone_id
 
@@ -276,7 +286,8 @@ resource "aws_route53_record" "bitwardenrs" {
 }
 
 resource "aws_route53_record" "www_bitwardenrs" {
-  name    = "www.${local.domain_name}"
+  name = "www.${local.domain_name}"
+
   type    = "A"
   zone_id = data.aws_route53_zone.domain_hosted_zone.zone_id
 

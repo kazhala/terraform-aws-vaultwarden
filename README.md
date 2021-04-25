@@ -58,9 +58,11 @@
 | <a name="input_enable_vpc_flowlog"></a> [enable\_vpc\_flowlog](#input\_enable\_vpc\_flowlog) | Enable ECS cluster VPC flowlog. | `bool` | `true` | no |
 | <a name="input_name"></a> [name](#input\_name) | Name for the VPC and ECS cluster. | `string` | `"bitwardenrs"` | no |
 | <a name="input_rds_allocated_storage"></a> [rds\_allocated\_storage](#input\_rds\_allocated\_storage) | Default RDS storage size. | `number` | `20` | no |
+| <a name="input_rds_backup_window"></a> [rds\_backup\_window](#input\_rds\_backup\_window) | The daily time range (in UTC) during which automated backups are created if they are enabled. Example: "09:46-10:16". Must not overlap with rds\_maintenance\_window. | `string` | `"04:00-04:30"` | no |
 | <a name="input_rds_db_name"></a> [rds\_db\_name](#input\_rds\_db\_name) | Default DB name for the RDS database. | `string` | `"bitwardenrs"` | no |
+| <a name="input_rds_maintenance_window"></a> [rds\_maintenance\_window](#input\_rds\_maintenance\_window) | The window to perform maintenance in. Syntax: "ddd:hh24:mi-ddd:hh24:mi". Eg: "Mon:00:00-Mon:03:00". | `string` | `"Sun:05:00-Sun:05:30"` | no |
 | <a name="input_rds_max_allocated_storage"></a> [rds\_max\_allocated\_storage](#input\_rds\_max\_allocated\_storage) | Maximum scaling for RDS storage. | `number` | `30` | no |
-| <a name="input_rds_snapshot_identifier"></a> [rds\_snapshot\_identifier](#input\_rds\_snapshot\_identifier) | Create RDS instance using the provided snapshot ID. | `string` | `""` | no |
+| <a name="input_rds_snapshot_identifier"></a> [rds\_snapshot\_identifier](#input\_rds\_snapshot\_identifier) | Create RDS instance using the provided snapshot ID. | `string` | `null` | no |
 | <a name="input_rds_username"></a> [rds\_username](#input\_rds\_username) | Master username for the RDS database. | `string` | `"postgres"` | no |
 | <a name="input_vpc_flowlog_loggroup"></a> [vpc\_flowlog\_loggroup](#input\_vpc\_flowlog\_loggroup) | Name of the new CloudWatch Log group for VPC flowlog. | `string` | `"/aws/vpc/flowlogs/"` | no |
 

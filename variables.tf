@@ -46,7 +46,7 @@ variable "rds_db_name" {
 }
 
 variable "rds_snapshot_identifier" {
-  default     = ""
+  default     = null
   type        = string
   description = "Create RDS instance using the provided snapshot ID."
 }
@@ -61,6 +61,18 @@ variable "rds_max_allocated_storage" {
   default     = 30
   type        = number
   description = "Maximum scaling for RDS storage."
+}
+
+variable "rds_backup_window" {
+  default     = "04:00-04:30"
+  type        = string
+  description = "The daily time range (in UTC) during which automated backups are created if they are enabled. Example: \"09:46-10:16\". Must not overlap with rds_maintenance_window."
+}
+
+variable "rds_maintenance_window" {
+  default     = "Sun:05:00-Sun:05:30"
+  type        = string
+  description = "The window to perform maintenance in. Syntax: \"ddd:hh24:mi-ddd:hh24:mi\". Eg: \"Mon:00:00-Mon:03:00\"."
 }
 
 variable "bitwardenrs_env" {
