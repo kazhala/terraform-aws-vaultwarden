@@ -81,6 +81,12 @@ variable "bitwardenrs_env" {
   description = "List of bitwardenrs environment variable mappings. [{name = \"name\", value = \"value\"}]."
 }
 
+variable "additional_tags" {
+  default     = {}
+  type        = map(string)
+  description = "Additional resource tags. {key = \"key\", value = \"value\"}"
+}
+
 # variable "enable_cloudfront" {
 #   default     = false
 #   type        = bool

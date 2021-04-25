@@ -51,6 +51,7 @@
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
+| <a name="input_additional_tags"></a> [additional\_tags](#input\_additional\_tags) | Additional resource tags. {key = "key", value = "value"} | `map(string)` | `{}` | no |
 | <a name="input_bitwardenrs_env"></a> [bitwardenrs\_env](#input\_bitwardenrs\_env) | List of bitwardenrs environment variable mappings. [{name = "name", value = "value"}]. | `list(map(string))` | `[]` | no |
 | <a name="input_cidr_block"></a> [cidr\_block](#input\_cidr\_block) | CIDR block for the ECS cluster VPC. | `string` | `"10.0.0.0/16"` | no |
 | <a name="input_domain_name"></a> [domain\_name](#input\_domain\_name) | Domain name to use for SSL cert. | `string` | n/a | yes |

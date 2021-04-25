@@ -20,6 +20,7 @@ module "ecs_cluster" {
   instance_type             = "t3.micro"
   target_group_arns         = [aws_alb_target_group.ecs_target.arn]
   health_check_grace_period = 600
+  additional_tags           = var.additional_tags
 }
 
 data "aws_route53_zone" "domain_hosted_zone" {
@@ -54,9 +55,12 @@ resource "aws_security_group" "ecs_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = {
-    "Name" = "ecs-${var.name}"
-  }
+  tags = merge(
+    {
+      "Name" = "ecs-${var.name}"
+    },
+    var.additional_tags
+  )
 }
 
 resource "aws_security_group" "alb_sg" {
@@ -83,9 +87,12 @@ resource "aws_security_group" "alb_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = {
-    "Name" = "alb-${var.name}"
-  }
+  tags = merge(
+    {
+      "Name" = "alb-${var.name}"
+    },
+    var.additional_tags
+  )
 }
 
 resource "aws_security_group" "rds_sg" {
@@ -105,9 +112,12 @@ resource "aws_security_group" "rds_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = {
-    "Name" = "rds-${var.name}"
-  }
+  tags = merge(
+    {
+      "Name" = "rds-${var.name}"
+    },
+    var.additional_tags
+  )
 }
 
 data "aws_iam_policy_document" "enhanced_monitoring" {
@@ -126,6 +136,13 @@ data "aws_iam_policy_document" "enhanced_monitoring" {
 resource "aws_iam_role" "enhanced_monitoring" {
   name_prefix        = "rds-monitoring-${var.name}-"
   assume_role_policy = data.aws_iam_policy_document.enhanced_monitoring.json
+
+  tags = merge(
+    {
+      "Name" = "rds-monitoring-${var.name}"
+    },
+    var.additional_tags
+  )
 }
 
 resource "aws_iam_role_policy_attachment" "enhanced_monitoring" {
@@ -136,6 +153,13 @@ resource "aws_iam_role_policy_attachment" "enhanced_monitoring" {
 resource "aws_db_subnet_group" "rds" {
   name_prefix = "${var.name}-"
   subnet_ids  = module.vpc.private_subnets
+
+  tags = merge(
+    {
+      "Name" = var.name
+    },
+    var.additional_tags
+  )
 }
 
 resource "random_password" "rds_master" {
@@ -180,9 +204,12 @@ resource "aws_db_instance" "rds" {
   performance_insights_enabled    = true
   enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
 
-  tags = {
-    "Name" = var.name
-  }
+  tags = merge(
+    {
+      "Name" = var.name
+    },
+    var.additional_tags
+  )
 }
 
 resource "aws_alb" "ecs_alb" {
@@ -192,6 +219,13 @@ resource "aws_alb" "ecs_alb" {
   security_groups    = [aws_security_group.alb_sg.id]
   subnets            = module.vpc.public_subnets
   load_balancer_type = "application"
+
+  tags = merge(
+    {
+      "Name" = "ecs-${var.name}"
+    },
+    var.additional_tags
+  )
 }
 
 resource "aws_alb_listener" "ecs_https_listener" {
@@ -231,6 +265,13 @@ resource "aws_alb_target_group" "ecs_target" {
   protocol    = "HTTP"
   vpc_id      = module.vpc.vpc_id
   target_type = "instance"
+
+  tags = merge(
+    {
+      "Name" = "ecs-${var.name}"
+    },
+    var.additional_tags
+  )
 }
 
 resource "aws_ecs_task_definition" "bitwardenrs_task" {
@@ -262,6 +303,13 @@ resource "aws_ecs_task_definition" "bitwardenrs_task" {
       ]
     }
   ])
+
+  tags = merge(
+    {
+      "Name" = var.name
+    },
+    var.additional_tags
+  )
 }
 
 resource "aws_ecs_service" "bitwardenrs_service" {
@@ -270,6 +318,13 @@ resource "aws_ecs_service" "bitwardenrs_service" {
   cluster         = module.ecs_cluster.cluster_id
   task_definition = aws_ecs_task_definition.bitwardenrs_task.arn
   desired_count   = 1
+
+  tags = merge(
+    {
+      "Name" = var.name
+    },
+    var.additional_tags
+  )
 }
 
 resource "aws_route53_record" "bitwardenrs" {
