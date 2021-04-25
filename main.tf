@@ -1,15 +1,5 @@
 locals {
   domain_name = "${var.domain_name_prefix}${var.domain_name_prefix != "" ? "." : ""}${var.domain_name}"
-
-  bitwardenrs_env = concat(
-    var.bitwardenrs_env,
-    [
-      {
-        "name" : "DATABASE_URL",
-        "value" : "postgresql://${aws_db_instance.rds.username}:${aws_db_instance.rds.password}@${aws_db_instance.rds.endpoint}/${aws_db_instance.rds.name}"
-      }
-    ]
-  )
 }
 
 module "vpc" {
@@ -246,7 +236,15 @@ resource "aws_ecs_task_definition" "bitwardenrs_task" {
       "name" : "bitwardenrs",
       "cpu" : 1024,
       "image" : "bitwardenrs/server:latest",
-      "environment" : local.bitwardenrs_env,
+      "environment" : concat(
+        var.bitwardenrs_env,
+        [
+          {
+            "name" : "DATABASE_URL",
+            "value" : "postgresql://${aws_db_instance.rds.username}:${aws_db_instance.rds.password}@${aws_db_instance.rds.endpoint}/${aws_db_instance.rds.name}"
+          }
+        ]
+      ),
       "portMappings" : [
         {
           "containerPort" : 80,
