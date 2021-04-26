@@ -3,27 +3,30 @@ locals {
 }
 
 module "vpc" {
-  source                   = "github.com/kazhala/terraform_aws_vpc"
-  vpc_name                 = var.name
+  source = "github.com/kazhala/terraform_aws_vpc"
+
+  name                     = var.name
   cidr_block               = var.cidr_block
   subnet_count             = 2
   enable_vpc_flowlog       = var.enable_vpc_flowlog
   flowlog_log_group_prefix = var.vpc_flowlog_loggroup
+  tags                     = var.tags
 }
 
 module "ecs_cluster" {
-  source                    = "github.com/kazhala/terraform_aws_ecs_ec2_cluster"
+  source = "github.com/kazhala/terraform_aws_ecs_ec2_cluster"
+
   vpc_id                    = module.vpc.vpc_id
   subnets                   = module.vpc.public_subnets
-  cluster_name              = var.name
-  security_groups           = [aws_security_group.ecs_sg.id]
+  name                      = var.name
+  security_groups           = [aws_security_group.ecs.id]
   instance_type             = "t3.micro"
-  target_group_arns         = [aws_alb_target_group.ecs_target.arn]
+  target_group_arns         = [aws_alb_target_group.ecs.arn]
   health_check_grace_period = 600
-  additional_tags           = var.additional_tags
+  tags                      = var.tags
 }
 
-data "aws_route53_zone" "domain_hosted_zone" {
+data "aws_route53_zone" "this" {
   name         = var.domain_name
   private_zone = false
 }
@@ -33,19 +36,19 @@ module "acm" {
   version = "~> v2.0"
 
   domain_name = local.domain_name
-  zone_id     = data.aws_route53_zone.domain_hosted_zone.zone_id
+  zone_id     = data.aws_route53_zone.this.zone_id
 
   subject_alternative_names = ["www.${local.domain_name}"]
 }
 
-resource "aws_security_group" "ecs_sg" {
+resource "aws_security_group" "ecs" {
   vpc_id = module.vpc.vpc_id
 
   ingress {
     from_port       = 80
     to_port         = 80
     protocol        = "tcp"
-    security_groups = [aws_security_group.alb_sg.id]
+    security_groups = [aws_security_group.alb.id]
   }
 
   egress {
@@ -59,11 +62,11 @@ resource "aws_security_group" "ecs_sg" {
     {
       "Name" = "ecs-${var.name}"
     },
-    var.additional_tags
+    var.tags
   )
 }
 
-resource "aws_security_group" "alb_sg" {
+resource "aws_security_group" "alb" {
   vpc_id = module.vpc.vpc_id
 
   ingress {
@@ -91,18 +94,18 @@ resource "aws_security_group" "alb_sg" {
     {
       "Name" = "alb-${var.name}"
     },
-    var.additional_tags
+    var.tags
   )
 }
 
-resource "aws_security_group" "rds_sg" {
+resource "aws_security_group" "rds" {
   vpc_id = module.vpc.vpc_id
 
   ingress {
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
-    security_groups = [aws_security_group.ecs_sg.id]
+    security_groups = [aws_security_group.ecs.id]
   }
 
   egress {
@@ -116,7 +119,7 @@ resource "aws_security_group" "rds_sg" {
     {
       "Name" = "rds-${var.name}"
     },
-    var.additional_tags
+    var.tags
   )
 }
 
@@ -141,7 +144,7 @@ resource "aws_iam_role" "enhanced_monitoring" {
     {
       "Name" = "rds-monitoring-${var.name}"
     },
-    var.additional_tags
+    var.tags
   )
 }
 
@@ -150,7 +153,7 @@ resource "aws_iam_role_policy_attachment" "enhanced_monitoring" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
 }
 
-resource "aws_db_subnet_group" "rds" {
+resource "aws_db_subnet_group" "this" {
   name_prefix = "${var.name}-"
   subnet_ids  = module.vpc.private_subnets
 
@@ -158,7 +161,7 @@ resource "aws_db_subnet_group" "rds" {
     {
       "Name" = var.name
     },
-    var.additional_tags
+    var.tags
   )
 }
 
@@ -175,7 +178,7 @@ resource "random_id" "rds_final_snapshot" {
   }
 }
 
-resource "aws_db_instance" "rds" {
+resource "aws_db_instance" "this" {
   identifier_prefix = "${var.name}-"
 
   instance_class            = "db.t2.micro"
@@ -196,8 +199,8 @@ resource "aws_db_instance" "rds" {
   allocated_storage     = var.rds_allocated_storage
   max_allocated_storage = var.rds_max_allocated_storage
 
-  db_subnet_group_name   = aws_db_subnet_group.rds.id
-  vpc_security_group_ids = [aws_security_group.rds_sg.id]
+  db_subnet_group_name   = aws_db_subnet_group.this.id
+  vpc_security_group_ids = [aws_security_group.rds.id]
 
   monitoring_interval             = 60
   monitoring_role_arn             = aws_iam_role.enhanced_monitoring.arn
@@ -208,15 +211,15 @@ resource "aws_db_instance" "rds" {
     {
       "Name" = var.name
     },
-    var.additional_tags
+    var.tags
   )
 }
 
-resource "aws_alb" "ecs_alb" {
+resource "aws_alb" "ecs" {
   # TODO: customise name_prefix
   name_prefix = "bw-"
 
-  security_groups    = [aws_security_group.alb_sg.id]
+  security_groups    = [aws_security_group.alb.id]
   subnets            = module.vpc.public_subnets
   load_balancer_type = "application"
 
@@ -224,12 +227,12 @@ resource "aws_alb" "ecs_alb" {
     {
       "Name" = "ecs-${var.name}"
     },
-    var.additional_tags
+    var.tags
   )
 }
 
-resource "aws_alb_listener" "ecs_https_listener" {
-  load_balancer_arn = aws_alb.ecs_alb.arn
+resource "aws_alb_listener" "ecs_https" {
+  load_balancer_arn = aws_alb.ecs.arn
   port              = "443"
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-2016-08"
@@ -237,12 +240,12 @@ resource "aws_alb_listener" "ecs_https_listener" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_alb_target_group.ecs_target.arn
+    target_group_arn = aws_alb_target_group.ecs.arn
   }
 }
 
-resource "aws_alb_listener" "ecs_http_listener" {
-  load_balancer_arn = aws_alb.ecs_alb.arn
+resource "aws_alb_listener" "ecs_http" {
+  load_balancer_arn = aws_alb.ecs.arn
   port              = "80"
   protocol          = "HTTP"
 
@@ -257,7 +260,7 @@ resource "aws_alb_listener" "ecs_http_listener" {
   }
 }
 
-resource "aws_alb_target_group" "ecs_target" {
+resource "aws_alb_target_group" "ecs" {
   # TODO: customise name_prefix
   name_prefix = "bw-"
 
@@ -270,12 +273,12 @@ resource "aws_alb_target_group" "ecs_target" {
     {
       "Name" = "ecs-${var.name}"
     },
-    var.additional_tags
+    var.tags
   )
 }
 
-resource "aws_ecs_task_definition" "bitwardenrs_task" {
-  family       = "bitwardenrs_task"
+resource "aws_ecs_task_definition" "bitwardenrs" {
+  family       = var.name
   network_mode = "bridge"
 
   container_definitions = jsonencode([
@@ -290,7 +293,7 @@ resource "aws_ecs_task_definition" "bitwardenrs_task" {
         [
           {
             "name" : "DATABASE_URL",
-            "value" : "postgresql://${aws_db_instance.rds.username}:${aws_db_instance.rds.password}@${aws_db_instance.rds.endpoint}/${aws_db_instance.rds.name}"
+            "value" : "postgresql://${aws_db_instance.this.username}:${aws_db_instance.this.password}@${aws_db_instance.this.endpoint}/${aws_db_instance.this.name}"
           }
         ]
       ),
@@ -308,22 +311,22 @@ resource "aws_ecs_task_definition" "bitwardenrs_task" {
     {
       "Name" = var.name
     },
-    var.additional_tags
+    var.tags
   )
 }
 
-resource "aws_ecs_service" "bitwardenrs_service" {
+resource "aws_ecs_service" "bitwardenrs" {
   name = var.name
 
   cluster         = module.ecs_cluster.cluster_id
-  task_definition = aws_ecs_task_definition.bitwardenrs_task.arn
+  task_definition = aws_ecs_task_definition.bitwardenrs.arn
   desired_count   = 1
 
   tags = merge(
     {
       "Name" = var.name
     },
-    var.additional_tags
+    var.tags
   )
 }
 
@@ -331,11 +334,11 @@ resource "aws_route53_record" "bitwardenrs" {
   name = local.domain_name
 
   type    = "A"
-  zone_id = data.aws_route53_zone.domain_hosted_zone.zone_id
+  zone_id = data.aws_route53_zone.this.zone_id
 
   alias {
-    name                   = aws_alb.ecs_alb.dns_name
-    zone_id                = aws_alb.ecs_alb.zone_id
+    name                   = aws_alb.ecs.dns_name
+    zone_id                = aws_alb.ecs.zone_id
     evaluate_target_health = false
   }
 }
@@ -344,11 +347,11 @@ resource "aws_route53_record" "www_bitwardenrs" {
   name = "www.${local.domain_name}"
 
   type    = "A"
-  zone_id = data.aws_route53_zone.domain_hosted_zone.zone_id
+  zone_id = data.aws_route53_zone.this.zone_id
 
   alias {
-    name                   = aws_alb.ecs_alb.dns_name
-    zone_id                = aws_alb.ecs_alb.zone_id
+    name                   = aws_alb.ecs.dns_name
+    zone_id                = aws_alb.ecs.zone_id
     evaluate_target_health = false
   }
 }
