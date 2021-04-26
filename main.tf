@@ -216,8 +216,7 @@ resource "aws_db_instance" "this" {
 }
 
 resource "aws_alb" "ecs" {
-  # TODO: customise name_prefix
-  name_prefix = "bw-"
+  name_prefix = "${substr(var.name, 0, 5)}-"
 
   security_groups    = [aws_security_group.alb.id]
   subnets            = module.vpc.public_subnets
@@ -261,8 +260,7 @@ resource "aws_alb_listener" "ecs_http" {
 }
 
 resource "aws_alb_target_group" "ecs" {
-  # TODO: customise name_prefix
-  name_prefix = "bw-"
+  name_prefix = "${substr(var.name, 0, 5)}-"
 
   port        = 80
   protocol    = "HTTP"
