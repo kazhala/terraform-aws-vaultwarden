@@ -194,7 +194,7 @@ resource "aws_db_instance" "this" {
 
   username = var.rds_username
   password = random_password.rds_master.result
-  name     = "bitwardenrs"
+  name     = var.rds_db_name
   port     = 5432
 
   allocated_storage     = var.rds_allocated_storage
