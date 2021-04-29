@@ -21,7 +21,7 @@ variable "name" {
   description = "Name for the VPC and ECS cluster."
 }
 
-variable "enable_vpc_flowlog" {
+variable "vpc_flowlog_enable" {
   default     = true
   type        = bool
   description = "Enable ECS cluster VPC flowlog."
@@ -87,14 +87,20 @@ variable "tags" {
   description = "Additional resource tags to apply to applicable resources. Format: {\"key\" = \"value\"}"
 }
 
-# variable "enable_cloudfront" {
-#   default     = false
-#   type        = bool
-#   description = "Setup CloudFront distribution infront of the ALB."
-# }
+variable "cloudfront_enable" {
+  default     = false
+  type        = bool
+  description = "Setup CloudFront distribution infront of the ALB."
+}
 
-# variable "acm_arn" {
-#   default     = ""
-#   type        = string
-#   description = "Provide us-east-1 region ACM certificate if enable_cloudfront equals true."
-# }
+variable "cloudfront_price_class" {
+  default     = "PriceClass_All"
+  type        = string
+  description = "The price class for this distribution. One of PriceClass_All, PriceClass_200, PriceClass_100."
+}
+
+variable "cloudfront_acm_arn" {
+  default     = null
+  type        = string
+  description = "Provide us-east-1 region ACM certificate if enable_cloudfront equals true."
+}

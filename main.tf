@@ -1,5 +1,6 @@
 locals {
-  domain_name = "${var.domain_name_prefix}${var.domain_name_prefix != "" ? "." : ""}${var.domain_name}"
+  domain_name       = "${var.domain_name_prefix}${var.domain_name_prefix != "" ? "." : ""}${var.domain_name}"
+  cloudfront_enable = var.cloudfront_enable == true && var.cloudfront_acm_arn != null ? true : false
 }
 
 module "vpc" {
@@ -8,7 +9,7 @@ module "vpc" {
   name                     = var.name
   cidr_block               = var.cidr_block
   subnet_count             = 2
-  enable_vpc_flowlog       = var.enable_vpc_flowlog
+  vpc_flowlog_enable       = var.vpc_flowlog_enable
   flowlog_log_group_prefix = var.vpc_flowlog_loggroup
   tags                     = var.tags
 }
@@ -328,6 +329,62 @@ resource "aws_ecs_service" "bitwardenrs" {
   )
 }
 
+data "aws_cloudfront_cache_policy" "this" {
+  name = "Managed-CachingDisabled"
+}
+
+resource "aws_cloudfront_distribution" "this" {
+  count = local.cloudfront_enable == true ? 1 : 0
+
+  aliases     = [local.domain_name, "www.${local.domain_name}"]
+  comment     = "CDN for ${var.name}"
+  price_class = var.cloudfront_price_class
+  enabled     = true
+
+  origin {
+    origin_id   = aws_alb.ecs.name
+    domain_name = aws_alb.ecs.dns_name
+
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "https-only"
+      origin_ssl_protocols   = ["TLSv1", "TLSv1.1", "TLSv1.2", "SSLv3"]
+    }
+  }
+
+  default_cache_behavior {
+    allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods         = ["GET", "HEAD"]
+    viewer_protocol_policy = "redirect-to-https"
+    target_origin_id       = aws_alb.ecs.name
+    min_ttl                = 0
+    max_ttl                = 0
+    default_ttl            = 0
+
+    forwarded_values {
+      query_string = true
+      headers      = ["*"]
+
+      cookies {
+        forward = "all"
+      }
+    }
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  viewer_certificate {
+    acm_certificate_arn      = var.cloudfront_acm_arn
+    ssl_support_method       = "sni-only"
+    minimum_protocol_version = "TLSv1.2_2019"
+  }
+}
+
 resource "aws_route53_record" "bitwardenrs" {
   name = local.domain_name
 
@@ -335,8 +392,8 @@ resource "aws_route53_record" "bitwardenrs" {
   zone_id = data.aws_route53_zone.this.zone_id
 
   alias {
-    name                   = aws_alb.ecs.dns_name
-    zone_id                = aws_alb.ecs.zone_id
+    name                   = local.cloudfront_enable == true ? aws_cloudfront_distribution.this[0].domain_name : aws_alb.ecs.dns_name
+    zone_id                = local.cloudfront_enable == true ? aws_cloudfront_distribution.this[0].hosted_zone_id : aws_alb.ecs.zone_id
     evaluate_target_health = false
   }
 }
@@ -348,8 +405,8 @@ resource "aws_route53_record" "www_bitwardenrs" {
   zone_id = data.aws_route53_zone.this.zone_id
 
   alias {
-    name                   = aws_alb.ecs.dns_name
-    zone_id                = aws_alb.ecs.zone_id
+    name                   = local.cloudfront_enable == true ? aws_cloudfront_distribution.this[0].domain_name : aws_alb.ecs.dns_name
+    zone_id                = local.cloudfront_enable == true ? aws_cloudfront_distribution.this[0].hosted_zone_id : aws_alb.ecs.zone_id
     evaluate_target_health = false
   }
 }
