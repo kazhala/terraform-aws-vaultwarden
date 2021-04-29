@@ -34,7 +34,7 @@ data "aws_route53_zone" "this" {
 
 module "acm" {
   source  = "terraform-aws-modules/acm/aws"
-  version = "~> v2.0"
+  version = "~> v3.0"
 
   domain_name = local.domain_name
   zone_id     = data.aws_route53_zone.this.zone_id
@@ -236,7 +236,7 @@ resource "aws_alb_listener" "ecs_https" {
   port              = "443"
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-2016-08"
-  certificate_arn   = module.acm.this_acm_certificate_arn
+  certificate_arn   = module.acm.acm_certificate_arn
 
   default_action {
     type             = "forward"
