@@ -36,10 +36,10 @@ module "acm" {
   source  = "terraform-aws-modules/acm/aws"
   version = "~> v3.0"
 
-  domain_name = local.domain_name
-  zone_id     = data.aws_route53_zone.this.zone_id
-
+  domain_name               = local.domain_name
+  zone_id                   = data.aws_route53_zone.this.zone_id
   subject_alternative_names = ["www.${local.domain_name}"]
+  tags                      = var.tags
 }
 
 resource "aws_security_group" "ecs" {
