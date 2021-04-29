@@ -214,6 +214,10 @@ resource "aws_db_instance" "this" {
     },
     var.tags
   )
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "aws_alb" "ecs" {
@@ -293,6 +297,10 @@ resource "aws_ecs_task_definition" "vaultwarden" {
           {
             "name" : "DATABASE_URL",
             "value" : "postgresql://${aws_db_instance.this.username}:${aws_db_instance.this.password}@${aws_db_instance.this.endpoint}/${aws_db_instance.this.name}"
+          },
+          {
+            "name" : "DOMAIN",
+            "value" : "https://${local.domain_name}"
           }
         ]
       ),
