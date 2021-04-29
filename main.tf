@@ -276,7 +276,7 @@ resource "aws_alb_target_group" "ecs" {
   )
 }
 
-resource "aws_ecs_task_definition" "bitwardenrs" {
+resource "aws_ecs_task_definition" "vaultwarden" {
   family       = var.name
   network_mode = "bridge"
 
@@ -284,11 +284,11 @@ resource "aws_ecs_task_definition" "bitwardenrs" {
     {
       "essential" : true,
       "memory" : 478,
-      "name" : "bitwardenrs",
+      "name" : "vaultwarden",
       "cpu" : 1024,
-      "image" : "bitwardenrs/server:latest",
+      "image" : "vaultwarden/server:latest",
       "environment" : concat(
-        var.bitwardenrs_env,
+        var.vaultwarden_env,
         [
           {
             "name" : "DATABASE_URL",
@@ -314,11 +314,11 @@ resource "aws_ecs_task_definition" "bitwardenrs" {
   )
 }
 
-resource "aws_ecs_service" "bitwardenrs" {
+resource "aws_ecs_service" "vaultwarden" {
   name = var.name
 
   cluster         = module.ecs_cluster.cluster_id
-  task_definition = aws_ecs_task_definition.bitwardenrs.arn
+  task_definition = aws_ecs_task_definition.vaultwarden.arn
   desired_count   = 1
 
   tags = merge(
@@ -392,7 +392,7 @@ resource "aws_cloudfront_distribution" "this" {
   )
 }
 
-resource "aws_route53_record" "bitwardenrs" {
+resource "aws_route53_record" "default" {
   name = local.domain_name
 
   type    = "A"
@@ -405,7 +405,7 @@ resource "aws_route53_record" "bitwardenrs" {
   }
 }
 
-resource "aws_route53_record" "www_bitwardenrs" {
+resource "aws_route53_record" "www" {
   name = "www.${local.domain_name}"
 
   type    = "A"

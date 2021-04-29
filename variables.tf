@@ -16,7 +16,7 @@ variable "cidr_block" {
 }
 
 variable "name" {
-  default     = "bitwardenrs"
+  default     = "vaultwarden"
   type        = string
   description = "Name for the VPC and ECS cluster."
 }
@@ -40,7 +40,7 @@ variable "rds_username" {
 }
 
 variable "rds_db_name" {
-  default     = "bitwardenrs"
+  default     = "vaultwarden"
   type        = string
   description = "Default DB name for the RDS database."
 }
@@ -75,10 +75,10 @@ variable "rds_maintenance_window" {
   description = "The window to perform maintenance in. Syntax: \"ddd:hh24:mi-ddd:hh24:mi\". Eg: \"Mon:00:00-Mon:03:00\"."
 }
 
-variable "bitwardenrs_env" {
+variable "vaultwarden_env" {
   default     = []
   type        = list(map(string))
-  description = "List of bitwardenrs environment variable mappings. [{name = \"name\", value = \"value\"}]."
+  description = "List of vaultwarden environment variable mappings. [{name = \"name\", value = \"value\"}]."
 }
 
 variable "tags" {
